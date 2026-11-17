@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EMI Calculator</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+:root{--bg:#eaf1f4;--card:#fff;--ink:#12262f;--mute:#5d7480;--line:#d3e0e6;--p:#0e7c86;--i:#e08a1e;--accent:#0e7c86;--on:#fff;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1b21;--card:#172830;--ink:#e6f0f3;--mute:#8aa3ad;--line:#27404a;--p:#3cc0cc;--i:#f0a840;--accent:#3cc0cc;--on:#0f1b21}}
+:root[data-theme="dark"]{--bg:#0f1b21;--card:#172830;--ink:#e6f0f3;--mute:#8aa3ad;--line:#27404a;--p:#3cc0cc;--i:#f0a840;--accent:#3cc0cc;--on:#0f1b21}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"DM Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;line-height:1.45}
+main{max-width:880px;margin:0 auto;padding:20px 16px 32px}
+h1{font-size:1.6rem;margin:4px 0 2px;letter-spacing:-.01em}
+.sub{color:var(--mute);margin:0 0 18px}
+.grid{display:grid;gap:16px;grid-template-columns:1fr}
+@media(min-width:720px){.grid{grid-template-columns:1fr 1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+label{display:block;font-weight:700;font-size:.9rem;margin:14px 0 6px}
+label:first-child{margin-top:0}
+.field{display:flex;align-items:center;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);overflow:hidden}
+.field:focus-within{border-color:var(--accent)}
+.field span{padding:0 12px;color:var(--mute);font-weight:500}
+input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:inherit;font-size:1.05rem;padding:12px 12px;outline:none}
+.field span+input{padding-left:0}
+input[type=range]{width:100%;padding:0;margin-top:8px;accent-color:var(--accent)}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:transparent;color:var(--mute);font:inherit;font-weight:700;padding:0 16px;cursor:pointer;min-height:44px}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--on)}
+.row{display:flex;gap:10px}
+.emi{font-size:2.3rem;font-weight:700;letter-spacing:-.02em;color:var(--p);margin:0}
+.lbl{color:var(--mute);font-size:.9rem;margin:0}
+.stat{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-top:1px solid var(--line)}
+.stat b{font-variant-numeric:tabular-nums}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px}
+.chart{display:flex;justify-content:center;margin:14px 0 6px}
+svg{width:100%;max-width:230px;height:auto}
+.err{color:#c0392b;font-size:.9rem;min-height:1.3em;margin:10px 0 0}
+.sched{margin-top:16px}
+.sched h2{font-size:1.15rem;margin:0 0 4px}
+.wrap{overflow:auto;max-height:420px;border:1px solid var(--line);border-radius:10px;margin-top:10px}
+table{border-collapse:collapse;width:100%;min-width:520px;font-variant-numeric:tabular-nums;font-size:.92rem}
+th,td{padding:9px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{position:sticky;top:0;background:var(--card);color:var(--mute);font-weight:700;z-index:1}
+td.pr{color:var(--p);font-weight:700}
+td.in{color:var(--i);font-weight:700}
+tbody tr:last-child td{border-bottom:0}
+</style>
+</head>
+<body>
+<main>
+<h1>EMI Calculator</h1>
+<p class="sub">See your monthly instalment and how much of the loan goes to interest.</p>
+<div class="grid">
+<section class="card" aria-label="Loan details">
+<label for="amt">Loan amount</label>
+<div class="field"><span>₹</span><input id="amt" inputmode="decimal" value="500000" autocomplete="off"></div>
+<label for="rate">Annual interest rate</label>
+<div class="field"><input id="rate" inputmode="decimal" value="9.5" autocomplete="off"><span>%</span></div>
+<input type="range" id="rateR" min="1" max="30" step="0.1" value="9.5" aria-label="Interest rate slider">
+<label for="ten">Loan tenure</label>
+<div class="row">
+<div class="field" style="flex:1"><input id="ten" inputmode="decimal" value="5" autocomplete="off"></div>
+<div class="seg" role="group" aria-label="Tenure unit">
+<button id="uy" aria-pressed="true">Years</button><button id="um" aria-pressed="false">Months</button>
+</div></div>
+<p class="err" id="err" role="alert"></p>
+</section>
+<section class="card" aria-live="polite">
+<p class="lbl">Monthly EMI</p>
+<p class="emi" id="emi">₹ 0</p>
+<div class="chart">
+<svg viewBox="0 0 120 120" role="img" aria-label="Principal versus interest">
+<circle cx="60" cy="60" r="44" fill="none" stroke="var(--i)" stroke-width="20"/>
+<circle id="arc" cx="60" cy="60" r="44" fill="none" stroke="var(--p)" stroke-width="20" stroke-dasharray="0 276.46" transform="rotate(-90 60 60)"/>
+<text id="pct" x="60" y="58" text-anchor="middle" fill="var(--ink)" font-size="16" font-weight="700">0%</text>
+<text x="60" y="73" text-anchor="middle" fill="var(--mute)" font-size="8">is interest</text>
+</svg></div>
+<div class="stat"><span><i class="dot" style="background:var(--p)"></i>Principal</span><b id="sp">₹ 0</b></div>
+<div class="stat"><span><i class="dot" style="background:var(--i)"></i>Total interest</span><b id="si">₹ 0</b></div>
+<div class="stat"><span>Total payment</span><b id="st">₹ 0</b></div>
+</section>
+</div>
+<section class="card sched" aria-label="Monthly repayment schedule">
+<h2>Month-by-month schedule</h2>
+<p class="lbl">How each EMI splits into principal and interest, in ₹.</p>
+<div class="wrap"><table>
+<thead><tr><th>Month</th><th>EMI</th><th>Principal paid</th><th>Interest paid</th><th>Balance</th></tr></thead>
+<tbody id="rows"></tbody>
+</table></div>
+</section>
+</main>
+<script>
+var $=function(i){return document.getElementById(i)};
+var unit="y";
+var fmt=function(v){return "₹ "+v.toLocaleString("en-IN",{maximumFractionDigits:2,minimumFractionDigits:2})};
+function calc(){
+  var p=parseFloat($("amt").value),a=parseFloat($("rate").value),t=parseFloat($("ten").value);
+  if(!(p>0)||!(a>=0)||!(t>0)){$("rows").innerHTML="";$("err").textContent="Enter a loan amount, interest rate and tenure greater than zero.";return}
+  $("err").textContent="";
+  var n=unit==="y"?t*12:t,r=a/1200,emi;
+  emi=r===0?p/n:p*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);
+  var total=emi*n,intr=total-p,share=intr/total;
+  $("emi").textContent=fmt(emi);
+  $("sp").textContent=fmt(p);$("si").textContent=fmt(intr);$("st").textContent=fmt(total);
+  var c=2*Math.PI*44;
+  $("arc").setAttribute("stroke-dasharray",(c*(1-share)).toFixed(2)+" "+c.toFixed(2));
+  $("pct").textContent=(share*100).toFixed(1)+"%";
+  schedule(p,r,Math.round(n),emi);
+}
+function schedule(p,r,n,emi){
+  var f=function(v){return v.toLocaleString("en-IN",{maximumFractionDigits:2,minimumFractionDigits:2})};
+  var bal=p,h="";
+  for(var m=1;m<=n;m++){
+    var it=bal*r,pr=emi-it;
+    if(m===n)pr=bal;
+    bal=Math.max(bal-pr,0);
+    h+="<tr><td>"+m+"</td><td>"+f(it+pr)+"</td><td class=\"pr\">"+f(pr)+"</td><td class=\"in\">"+f(it)+"</td><td>"+f(bal)+"</td></tr>";
+  }
+  $("rows").innerHTML=h;
+}
+function setUnit(u){
+  unit=u;$("uy").setAttribute("aria-pressed",u==="y");$("um").setAttribute("aria-pressed",u==="m");calc();
+}
+["amt","rate","ten"].forEach(function(i){$(i).addEventListener("input",function(){
+  if(i==="rate"){var v=parseFloat($("rate").value);if(v>=1&&v<=30)$("rateR").value=v}
+  calc()})});
+$("rateR").addEventListener("input",function(){$("rate").value=$("rateR").value;calc()});
+$("uy").onclick=function(){setUnit("y")};
+$("um").onclick=function(){setUnit("m")};
+calc();
+</script>
+</body>
+</html>
